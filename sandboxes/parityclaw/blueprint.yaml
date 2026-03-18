@@ -1,0 +1,47 @@
+# ParityClaw NemoClaw Blueprint
+# ==============================
+# One-command deployment: nemoclaw onboard --from parityclaw
+#
+# Blueprint lifecycle:
+#   1. Resolve artifact (container image)
+#   2. Verify digest
+#   3. Plan resources (sandbox + providers)
+#   4. Apply through OpenShell CLI
+
+name: parityclaw
+version: 0.1.0
+description: |
+  ParityClaw — GPI Agent OS
+  Fork of OpenCrabs with guava-anti MCP integration,
+  Eternal Memory (7-layer), Guard Shield (22+ patterns),
+  A2A Gateway (JSON-RPC 2.0 + SSE), and Bee Colony Debate.
+
+base_image: ghcr.io/koatora20/parityclaw-sandbox:latest
+policy: policy.yaml
+
+# Provider credentials (injected as env vars, never written to disk)
+providers:
+  - type: openai
+    env: OPENAI_API_KEY
+  - type: anthropic
+    env: ANTHROPIC_API_KEY
+  - type: custom
+    name: guava_cloud
+    env: GUAVA_CLOUD_TOKEN
+
+# Resource limits
+resources:
+  memory: 4Gi
+  cpu: "2"
+
+# Health check
+health:
+  path: /health
+  port: 8080
+  interval: 30s
+
+# Post-deploy hooks
+hooks:
+  post_create:
+    - "guava-anti session load --depth 1"
+    - "parityclaw agent --agent main --local -m 'ParityClaw sandbox ready' --session-id boot"

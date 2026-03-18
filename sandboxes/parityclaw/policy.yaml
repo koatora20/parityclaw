@@ -1,0 +1,85 @@
+# ParityClaw OpenShell Security Policy
+# =====================================
+# Declarative policy for the ParityClaw sandbox.
+# Static sections (filesystem, process) are locked at creation.
+# Dynamic sections (network, inference) can be hot-reloaded.
+#
+# Deploy: openshell policy set <name> --policy policy.yaml
+
+version: 1
+
+# --- Filesystem Policy ---
+# Deny-by-default. Only listed paths are accessible.
+filesystem_policy:
+  read_only:
+    - /usr                           # System binaries
+    - /etc                           # System config
+    - /lib                           # Shared libraries
+    - /sandbox/.opencrabs            # OpenCrabs config (immutable)
+  read_write:
+    - /sandbox                       # Agent workspace root
+    - /tmp                           # Temporary files
+    - /sandbox/.openclaw/workspace   # Eternal Memory + skills + plans
+
+# --- Network Policies ---
+# Whitelist-only. Unlisted destinations are blocked (403).
+network_policies:
+  # LLM Inference (routed through OpenShell provider)
+  - name: openai_inference
+    destinations:
+      - host: "api.openai.com"
+        port: 443
+        protocol: HTTPS
+    allowed_binaries:
+      - parityclaw
+
+  - name: anthropic_inference
+    destinations:
+      - host: "api.anthropic.com"
+        port: 443
+        protocol: HTTPS
+    allowed_binaries:
+      - parityclaw
+
+  # Guava Cloud Memory sync (Cloudflare Workers)
+  - name: guava_cloud_sync
+    destinations:
+      - host: "guava-memory.workers.dev"
+        port: 443
+        protocol: HTTPS
+    allowed_binaries:
+      - guava-anti
+
+  # A2A Gateway (local only)
+  - name: a2a_local
+    destinations:
+      - host: "127.0.0.1"
+        port: 8080
+        protocol: HTTP
+    allowed_binaries:
+      - parityclaw
+
+  # GitHub API (for gh CLI, git operations)
+  - name: github_api
+    destinations:
+      - host: "api.github.com"
+        port: 443
+        protocol: HTTPS
+      - host: "github.com"
+        port: 443
+        protocol: HTTPS
+    allowed_binaries:
+      - git
+      - gh
+      - curl
+
+# --- Process Policy ---
+# Run agent as unprivileged sandbox user
+process:
+  run_as_user: sandbox
+  run_as_group: sandbox
+
+# --- Landlock Policy ---
+# Kernel-level mandatory access control (Linux 5.13+)
+landlock:
+  compatibility: best_effort  # Graceful degradation on older kernels
